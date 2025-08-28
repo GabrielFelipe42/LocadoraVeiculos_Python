@@ -1,0 +1,5 @@
+psutil==5.9.8
+psycopg2-binary==2.9.9
+SQLAlchemy==2.0.29
+flask==3.0.3
+requests
