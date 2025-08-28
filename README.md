@@ -1,6 +1,18 @@
 # API Locadora de Veículos
 
 # Set up
+**Recomendação:** Antes de instalar as dependências, crie um ambiente virtual para evitar conflitos de versões e manter o projeto isolado.
+
+No Windows, execute no terminal:
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+No Linux/Mac:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
 Primeiro, instale o packet manager do python com o comando
 ```bash
 $ sudo apt install python3-pip
