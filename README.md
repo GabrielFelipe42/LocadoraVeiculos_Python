@@ -13,7 +13,7 @@ No Linux/Mac:
 python3 -m venv .venv
 source .venv/bin/activate
 ```
-Primeiro, instale o packet manager do python com o comando
+Em seguida, instale o packet manager do python com o comando
 ```bash
 $ sudo apt install python3-pip
 ```

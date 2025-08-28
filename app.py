@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, text
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
-engine = create_engine("postgresql://trab_banco_owner:5kYVI6gRfHlK@ep-nameless-tooth-a5fq2x2q-pooler.us-east-2.aws.neon.tech/trab_banco?sslmode=require")
+engine = create_engine("postgresql://neondb_owner:npg_S8TCvi2xVwzP@ep-shy-heart-acwxgxm7-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require")
 
 # =================== ROTAS FUNCIONARIOS  =================== 
 @app.route("/get_all_funcionarios", methods=["GET"])
