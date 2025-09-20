@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, text
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
-engine = create_engine("postgresql://neondb_owner:npg_S8TCvi2xVwzP@ep-shy-heart-acwxgxm7-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require")
+engine = create_engine('postgresql://neondb_owner:npg_S8TCvi2xVwzP@ep-shy-heart-acwxgxm7-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require')
 
 # =================== ROTAS FUNCIONARIOS  =================== 
 @app.route("/get_all_funcionarios", methods=["GET"])
@@ -110,31 +110,75 @@ def demitir_funcionario(cpf):
     return f"Funcionário com cpf {cpf} foi demitido com sucesso!"
 
 
-# =================== ROTAS VEICULOS =================== 
-@app.route("/get_all_veiculos", methods=["GET"])
-def get_all_veiculos():
-    query = text("SELECT placa, tipo_comb,cor,marca,modelo,kms,vlr_car, ar_cond, ativo FROM veiculos")
+# =================== ROTAS TIPO DE VEICULOS =================== 
+@app.route("/get_all_tipo_veiculos", methods=["GET"])
+def get_all_tipo_veiculos():
+    query = text("SELECT id_tipo, modelo, tipo_combustivel, capacidade_passageiros FROM tipo_veiculos")
 
     with engine.connect() as connection:
         result = connection.execute(query)
-        clientes = []
+        tipos = []
         for row in result.fetchall():
-            # Convert each row to a dictionary manually
-            cliente = {
-                    "placa": row[0],
-                    "tipo_comb": row[1],
-                    "cor": row[2],
-                    "marca": row[3],
-                    "modelo": row[4],
-                    "kms": row[5],
-                    "vlr_car": row[6],
-                    "ar_cond": row[7],
-                    "ativo": row[8]
-                    # Add more fields as needed
-                    }
-            clientes.append(cliente)
+            tipo = {
+                "id_tipo": row[0],
+                "modelo": row[1],
+                "tipo_combustivel": row[2],
+                "capacidade_passageiros": row[3]
+            }
+            tipos.append(tipo)
 
-    return jsonify(clientes)
+    return jsonify(tipos)
+
+@app.route("/cadastrar_tipo_veiculo", methods=["POST"])
+def cadastrar_tipo_veiculo():
+    data = request.json
+    modelo = data.get('modelo')
+    tipo_combustivel = data.get('tipo_combustivel')
+    capacidade_passageiros = data.get('capacidade_passageiros')
+
+    query = text("INSERT INTO tipo_veiculos (modelo, tipo_combustivel, capacidade_passageiros) "
+                 "VALUES (:modelo, :tipo_combustivel, :capacidade_passageiros)")
+
+    with engine.connect() as connection:
+        connection.execute(query, {
+            'modelo': modelo,
+            'tipo_combustivel': tipo_combustivel,
+            'capacidade_passageiros': capacidade_passageiros
+        })
+        connection.commit()
+
+    return jsonify({"message": "Tipo de veículo cadastrado com sucesso!"})
+
+# =================== ROTAS VEICULOS =================== 
+@app.route("/get_all_veiculos", methods=["GET"])
+def get_all_veiculos():
+    query = text("""
+        SELECT v.placa, v.cor, v.quilometragem, v.valor, v.ar_condicionado, 
+               v.marca, v.id_tipo, v.ativo, tv.modelo, tv.tipo_combustivel, tv.capacidade_passageiros
+        FROM veiculos v 
+        JOIN tipo_veiculos tv ON v.id_tipo = tv.id_tipo
+    """)
+
+    with engine.connect() as connection:
+        result = connection.execute(query)
+        veiculos = []
+        for row in result.fetchall():
+            veiculo = {
+                "placa": row[0],
+                "cor": row[1],
+                "quilometragem": row[2],
+                "valor": row[3],
+                "ar_condicionado": row[4],
+                "marca": row[5],
+                "id_tipo": row[6],
+                "ativo": row[7],
+                "modelo": row[8],
+                "tipo_combustivel": row[9],
+                "capacidade_passageiros": row[10]
+            }
+            veiculos.append(veiculo)
+
+    return jsonify(veiculos)
 
 
 @app.route("/tirar_veiculo_frota/<string:placa>", methods=["DELETE"])
@@ -152,27 +196,26 @@ def tirar_veiculo_frota(placa):
 def adicionar_veiculo():
     data = request.json
     placa = data.get('placa')
-    tipo_comb = data.get('tipo_comb')
     cor = data.get('cor')
     marca = data.get('marca')
-    modelo = data.get('modelo')
-    kms = data.get('kms')
-    vlr_car = data.get('vlr_car')
-    ar_cond = data.get('ar_cond')
+    quilometragem = data.get('quilometragem')
+    valor = data.get('valor')
+    ar_condicionado = data.get('ar_condicionado')
+    id_tipo = data.get('id_tipo')
     ativo = data.get('ativo', True) 
-    query = text("""INSERT INTO veiculos (placa, tipo_comb, cor, marca, modelo, kms, vlr_car, ar_cond, ativo) VALUES
-            (:placa, :tipo_comb, :cor, :marca, :modelo, :kms, :vlr_car, :ar_cond, :ativo)""")
+    
+    query = text("""INSERT INTO veiculos (placa, cor, marca, quilometragem, valor, ar_condicionado, id_tipo, ativo) VALUES
+            (:placa, :cor, :marca, :quilometragem, :valor, :ar_condicionado, :id_tipo, :ativo)""")
     
     with engine.connect() as connection:
         connection.execute(query, {
                 'placa': placa,
-                'tipo_comb': tipo_comb,
                 'cor': cor,
                 'marca': marca,
-                'modelo': modelo, 
-                'kms': kms,
-                'vlr_car': vlr_car,
-                'ar_cond': ar_cond,
+                'quilometragem': quilometragem, 
+                'valor': valor,
+                'ar_condicionado': ar_condicionado,
+                'id_tipo': id_tipo,
                 'ativo': ativo
             })
         connection.commit()
@@ -276,28 +319,33 @@ def fazer_reserva():
     dt_devolucao_obj = dt_reserva_obj + timedelta(days=dias)
     dt_devolucao = dt_devolucao_obj.isoformat()
 
-    placa = data.get("placa")
-    query_valor_carro = text("SELECT vlr_car FROM veiculos WHERE placa = :placa")
+    id_tipo = data.get("id_tipo")
+    
+    # Obter valor médio dos veículos deste tipo para cálculo
+    query_valor_tipo = text("SELECT AVG(valor) FROM veiculos WHERE id_tipo = :id_tipo AND ativo = true")
     with engine.connect() as connection:
-        result = connection.execute(query_valor_carro, {"placa": placa})
+        result = connection.execute(query_valor_tipo, {"id_tipo": id_tipo})
         row = result.fetchone()
-        if row:
-            vlr_carro = row[0]
+        if row and row[0]:
+            vlr_medio_tipo = row[0]
         else:
-            return "Carro não encontrado", 404
+            return "Tipo de veículo não encontrado ou sem veículos disponíveis", 404
 
     # Calcular o valor da reserva
-    valor = calcular_valor_reserva(vlr_carro, dias)
+    valor = calcular_valor_reserva(vlr_medio_tipo, dias)
+    status = data.get("status", "Ativa")
 
     # Gravar na tabela reservas
-    query_reservas = text("INSERT INTO reservas (cod_cliente, id_funcionario, valor, dt_reserva, dt_devolucao) VALUES (:cod_cliente, :id_funcionario, :valor, :dt_reserva, :dt_devolucao)")
+    query_reservas = text("INSERT INTO reservas (cod_cliente, id_funcionario, id_tipo, valor, dt_reserva, dt_devolucao, status) VALUES (:cod_cliente, :id_funcionario, :id_tipo, :valor, :dt_reserva, :dt_devolucao, :status)")
     with engine.connect() as connection:
         connection.execute(query_reservas, {
             "cod_cliente": cod_cliente,
             "id_funcionario": id_funcionario,
+            "id_tipo": id_tipo,
             "valor": valor,
             "dt_reserva": dt_reserva,
-            "dt_devolucao": dt_devolucao
+            "dt_devolucao": dt_devolucao,
+            "status": status
         })
         connection.commit()
     print("Reserva realizada com sucesso!")
@@ -306,7 +354,12 @@ def fazer_reserva():
 
 @app.route("/get_all_reservas", methods=["GET"])
 def get_all_reservas():
-    query = text("SELECT cod_reserva, cod_cliente, id_funcionario, valor, dt_reserva, dt_devolucao FROM reservas")
+    query = text("""
+        SELECT r.cod_reserva, r.cod_cliente, r.id_funcionario, r.id_tipo, r.valor, 
+               r.dt_reserva, r.dt_devolucao, r.status, tv.modelo, tv.tipo_combustivel
+        FROM reservas r 
+        JOIN tipo_veiculos tv ON r.id_tipo = tv.id_tipo
+    """)
     with engine.connect() as connection:
         result = connection.execute(query)
         reservas = []
@@ -315,10 +368,13 @@ def get_all_reservas():
                 "cod_reserva": row[0],
                 "cod_cliente": row[1],
                 "id_funcionario": row[2],
-                "valor": row[3],
-                "dt_reserva": row[4],
-                "dt_devolucao": row[5]
-                # Add more fields as needed
+                "id_tipo": row[3],
+                "valor": row[4],
+                "dt_reserva": row[5],
+                "dt_devolucao": row[6],
+                "status": row[7],
+                "modelo": row[8],
+                "tipo_combustivel": row[9]
             }
             reservas.append(reserva)
 

@@ -12,26 +12,57 @@ def tirar_veiculo_frota():
     else:
         return "Erro ao retirar o veiculo"
 
+def get_all_tipo_veiculos():
+    response = requests.get(local_host + "/get_all_tipo_veiculos")
+    
+    if response.status_code == 200:
+        tipos = response.json()
+        for tipo in tipos:
+            print("ID:", tipo["id_tipo"])
+            print("Modelo:", tipo["modelo"])
+            print("Tipo de combustível:", tipo["tipo_combustivel"])
+            print("Capacidade de passageiros:", tipo["capacidade_passageiros"])
+            print("#####################################")
+    else:
+        return "Erro ao listar tipos de veículos"
+
+def cadastrar_tipo_veiculo():
+    modelo = input("Modelo: ")
+    tipo_combustivel = input("Tipo de combustível: ")
+    capacidade_passageiros = int(input("Capacidade de passageiros: "))
+
+    novo_tipo = {
+        "modelo": modelo,
+        "tipo_combustivel": tipo_combustivel,
+        "capacidade_passageiros": capacidade_passageiros
+    }
+
+    response = requests.post(local_host + "/cadastrar_tipo_veiculo", json=novo_tipo)
+    
+    if response.status_code == 200:
+        return "Tipo de veículo cadastrado com sucesso!"
+    else:
+        return "Erro ao cadastrar o tipo de veículo."
+
 def adicionar_veiculo():
+    get_all_tipo_veiculos()
+    id_tipo = int(input("ID do tipo de veículo: "))
     placa = input("Placa do veículo: ")
-    tipo_comb = input("Tipo combustivel: ")
     cor = input("Cor: ")
     marca = input("Marca: ")
-    modelo = input("Modelo: ")
-    kms = int(input("Quilometragem: "))
-    vlr_car = int(input("Valor carro: "))
-    ar_cond = bool(int(input("Possui ar condicionado ? [1/0]: ")))  # Convertendo para booleano
-    ativo = bool(int(input("Participa da frota ativa ? [1/0]: ")))  # Convertendo para booleano
+    quilometragem = int(input("Quilometragem: "))
+    valor = int(input("Valor carro: "))
+    ar_condicionado = bool(int(input("Possui ar condicionado ? [1/0]: ")))
+    ativo = bool(int(input("Participa da frota ativa ? [1/0]: ")))
 
     novo_veiculo = {
         "placa": placa,
-        "tipo_comb": tipo_comb,
         "cor": cor,
         "marca": marca,
-        "modelo": modelo,
-        "kms": kms,
-        "vlr_car": vlr_car,
-        "ar_cond": ar_cond,
+        "quilometragem": quilometragem,
+        "valor": valor,
+        "ar_condicionado": ar_condicionado,
+        "id_tipo": id_tipo,
         "ativo": ativo
     }
 
@@ -54,13 +85,15 @@ def get_all_veiculos():
             else:
                 print("Marca:", veiculo["marca"])
                 print("Modelo:", veiculo["modelo"])
-                print("Valor:", veiculo["vlr_car"])
-                print("Tipo de combustivel:", veiculo["tipo_comb"])
-                print("Ar condicionado:", veiculo["ar_cond"])
+                print("Valor:", veiculo["valor"])
+                print("Tipo de combustível:", veiculo["tipo_combustivel"])
+                print("Capacidade de passageiros:", veiculo["capacidade_passageiros"])
+                print("Ar condicionado:", veiculo["ar_condicionado"])
                 print("Placa:", veiculo["placa"])
+                print("Quilometragem:", veiculo["quilometragem"])
                 print("#####################################") 
     else:
-        return "Erro ao listar clientes"
+        return "Erro ao listar veículos"
 
 def get_all_funcionarios():
     response = requests.get(local_host + "/get_all_funcionarios")
@@ -205,36 +238,40 @@ def get_all_reservas():
             print("Código da reserva:", reserva["cod_reserva"])
             print("Código do cliente:", reserva["cod_cliente"])
             print("ID do funcionário:", reserva["id_funcionario"])
+            print("Tipo de veículo:", reserva["modelo"], "(" + reserva["tipo_combustivel"] + ")")
             print("Valor:", reserva["valor"])
             print("Data da reserva:", reserva["dt_reserva"])
             print("Data de devolução:", reserva["dt_devolucao"])
+            print("Status:", reserva["status"])
             print("#####################################")
     else:
         return "Erro ao listar reservas"
 
 
 def fazer_reserva():
-    get_all_veiculos()
-    placa = input("Placa do carro:")
+    get_all_tipo_veiculos()
+    id_tipo = input("ID do tipo de veículo:")
 
     get_all_clientes()
     cpf = input("CPF do cliente:")
 
     get_all_funcionarios()
-    id_funcionario = input("CPF do funcionario:")
+    cpf_funcionario = input("CPF do funcionário:")
 
     dt_reserva = input("Data inicio da reserva (no formato YYYY-MM-DD): ")
     dias = input("Quantidade de dias:")
+    status = input("Status da reserva (padrão: Ativa): ") or "Ativa"
 
-    cliente_data = { 
+    reserva_data = { 
             "cpf": cpf,
-            "cpf_funcionario": id_funcionario,
+            "cpf_funcionario": cpf_funcionario,
             "dias": dias,
             "dt_reserva": dt_reserva,
-            "placa": placa
+            "id_tipo": id_tipo,
+            "status": status
             }
 
-    response = requests.post(local_host + "/fazer_reserva", json=cliente_data)
+    response = requests.post(local_host + "/fazer_reserva", json=reserva_data)
 
     if response.status_code == 200:
         valor = response.json()  # Extracting the value from the JSON response
@@ -242,3 +279,4 @@ def fazer_reserva():
         return "Reserva realizada com sucesso!"
     else:
         return "Erro ao realizar a reserva."
+

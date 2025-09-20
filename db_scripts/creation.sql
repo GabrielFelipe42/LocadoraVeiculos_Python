@@ -1,13 +1,22 @@
+-- Tabela Tipo de Veículos (nova entidade)
+CREATE TABLE tipo_veiculos (
+    id_tipo SERIAL PRIMARY KEY,
+    modelo VARCHAR(255),
+    tipo_combustivel VARCHAR(255),
+    capacidade_passageiros INTEGER
+);
+
+-- Tabela Veículos (modificada)
 CREATE TABLE veiculos (
     placa VARCHAR(10) PRIMARY KEY,
-    tipo_comb VARCHAR(255),
     cor VARCHAR(255),
+    quilometragem NUMERIC,
+    valor NUMERIC,
+    ar_condicionado BOOLEAN,
     marca VARCHAR(255),
-    modelo VARCHAR(255),
-    kms NUMERIC,
-    vlr_car NUMERIC,
-    ar_cond BOOLEAN,
-    ativo BOOLEAN
+    id_tipo INTEGER,
+    ativo BOOLEAN,
+    FOREIGN KEY (id_tipo) REFERENCES tipo_veiculos(id_tipo)
 );
 
 CREATE TABLE funcionarios (
@@ -35,11 +44,14 @@ CREATE TABLE reservas (
     cod_reserva SERIAL PRIMARY KEY,
     cod_cliente INTEGER,
     id_funcionario INTEGER,
+    id_tipo INTEGER,
     valor NUMERIC,
     dt_reserva DATE,
     dt_devolucao DATE,
+    status VARCHAR(50),
     FOREIGN KEY (cod_cliente) REFERENCES clientes(cod_cliente),
-    FOREIGN KEY (id_funcionario) REFERENCES funcionarios(id_funcionario)
+    FOREIGN KEY (id_funcionario) REFERENCES funcionarios(id_funcionario),
+    FOREIGN KEY (id_tipo) REFERENCES tipo_veiculos(id_tipo)
 );
 
 CREATE TABLE veiculos_reservados (
@@ -51,15 +63,25 @@ CREATE TABLE veiculos_reservados (
 );
 
 
--- Inserir dados na tabela de veículos
-INSERT INTO veiculos (placa, tipo_comb, cor, marca, modelo, kms, vlr_car, ar_cond, ativo) 
+-- Inserir dados na tabela de tipos de veículos
+INSERT INTO tipo_veiculos (modelo, tipo_combustivel, capacidade_passageiros) 
 VALUES 
-    ('ABC1234', 'Gasolina', 'Preto', 'Toyota', 'Corolla', 50000, 35000.00, true, true),
-    ('DEF5678', 'Etanol', 'Prata', 'Chevrolet', 'Onix', 40000, 30000.00, false, true),
-    ('GHI91011', 'Diesel', 'Branco', 'Ford', 'Ranger', 60000, 50000.00, true, true),
-    ('JKL3456', 'Flex', 'Vermelho', 'Volkswagen', 'Gol', 40000, 28000.00, true, true),
-    ('MNO6789', 'Gasolina', 'Branco', 'Chevrolet', 'Prisma', 35000, 25000.00, false, true),
-    ('PQR9012', 'Diesel', 'Cinza', 'Ford', 'Fiesta', 45000, 30000.00, true, true);
+    ('Corolla', 'Gasolina', 5),
+    ('Onix', 'Etanol', 5),
+    ('Ranger', 'Diesel', 2),
+    ('Gol', 'Flex', 5),
+    ('Prisma', 'Gasolina', 5),
+    ('Fiesta', 'Diesel', 5);
+
+-- Inserir dados na tabela de veículos
+INSERT INTO veiculos (placa, cor, quilometragem, valor, ar_condicionado, marca, id_tipo, ativo) 
+VALUES 
+    ('ABC1234', 'Preto', 50000, 35000.00, true, 'Toyota', 1, true),
+    ('DEF5678', 'Prata', 40000, 30000.00, false, 'Chevrolet', 2, true),
+    ('GHI91011', 'Branco', 60000, 50000.00, true, 'Ford', 3, true),
+    ('JKL3456', 'Vermelho', 40000, 28000.00, true, 'Volkswagen', 4, true),
+    ('MNO6789', 'Branco', 35000, 25000.00, false, 'Chevrolet', 5, true),
+    ('PQR9012', 'Cinza', 45000, 30000.00, true, 'Ford', 6, true);
 
 -- Inserir dados na tabela de funcionários
 INSERT INTO funcionarios (nome, cpf, cargo, endereco, salario, dt_nasc, ativo) 
@@ -80,11 +102,11 @@ VALUES
     ('1975-12-10', '654321987', 'Carla Lima', '32165498708', 'Travessa das Flores, 123');
 
 -- Inserir dados na tabela de reservas
-INSERT INTO reservas (cod_cliente, id_funcionario, valor, dt_reserva, dt_devolucao) 
+INSERT INTO reservas (cod_cliente, id_funcionario, id_tipo, valor, dt_reserva, dt_devolucao, status) 
 VALUES 
-    (1, 2, 150.00, '2024-05-10', '2024-05-15'),
-    (2, 3, 200.00, '2024-06-01', '2024-06-07'),
-    (3, 1, 180.00, '2024-07-20', '2024-07-25');
+    (1, 2, 1, 150.00, '2024-05-10', '2024-05-15', 'Ativa'),
+    (2, 3, 2, 200.00, '2024-06-01', '2024-06-07', 'Ativa'),
+    (3, 1, 3, 180.00, '2024-07-20', '2024-07-25', 'Finalizada');
 
 -- Inserir dados na tabela de veículos reservados
 INSERT INTO veiculos_reservados (cod_reserva, placa) 

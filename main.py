@@ -7,6 +7,7 @@ while (sair):
     menu_inicial = Menu(
             #sair
             "Sair",
+            
             #clientes
             "Adicionar cliente",
             "Listar clientes",
@@ -19,6 +20,10 @@ while (sair):
             "Demitir funcionario",
             "Promover funcionario", 
 
+            #tipo de veículos
+            "Adicionar tipo de veículo",
+            "Listar tipos de veículos",
+            
             #veículos 
             "Adicionar veículo",
             "Listar veículos",
@@ -54,12 +59,17 @@ while (sair):
         case 8:
             print(promover_funcionario())
         case 9:
-            print(adicionar_veiculo())
+            print(cadastrar_tipo_veiculo())
         case 10:
-            print(get_all_veiculos())
+            print(get_all_tipo_veiculos())
         case 11:
-            print(tirar_veiculo_frota())
+            print(adicionar_veiculo())
         case 12:
-            print(fazer_reserva())
+            print(get_all_veiculos())
         case 13:
+            print(tirar_veiculo_frota())
+        case 14:
+            print(fazer_reserva())
+        case 15:
             print(get_all_reservas())
+

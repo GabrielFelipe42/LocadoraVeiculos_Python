@@ -1,19 +1,25 @@
 # API Locadora de Veículos
 
-# Set up
-**Recomendação:** Antes de instalar as dependências, crie um ambiente virtual para evitar conflitos de versões e manter o projeto isolado.
+## Descrição
+Sistema de locadora de veículos com API REST e interface CLI, baseado em modelo relacional atualizado com entidade "Tipo de Veículos".
 
-No Windows, execute no terminal:
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
-No Linux/Mac:
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-Em seguida, instale o packet manager do python com o comando
+## Estrutura do Banco de Dados
+- **Tipo de Veículos**: Modelo, tipo de combustível, capacidade de passageiros
+- **Veículos**: Placa, cor, marca, quilometragem, valor, ar condicionado, tipo (FK)
+- **Clientes**: Código, nome, CPF, endereço, CNH, data nascimento
+- **Funcionários**: ID, nome, CPF, cargo, endereço, salário, data nascimento, ativo
+- **Reservas**: Código, cliente (FK), funcionário (FK), tipo de veículo (FK), valor, datas, status
+
+## Funcionalidades
+- Gestão de tipos de veículos
+- Gestão de veículos
+- Gestão de clientes
+- Gestão de funcionários
+- Sistema de reservas por tipo de veículo
+- Interface CLI interativa
+
+## Set up
+Primeiro, instale o packet manager do python com o comando
 ```bash
 $ sudo apt install python3-pip
 ```
@@ -39,3 +45,15 @@ $ taskkill /PID 998244353 /F
 
 então execute ```python3 app.py``` para rodar o servidor localmente e ter acesso às rotas http no seu navegador no endereço ```http://127.0.0.1:8080```
 depois disso, em outro terminal, execute o comando ```python3 main.py```
+
+## Rotas da API
+- `/get_all_tipo_veiculos` - Listar tipos de veículos
+- `/cadastrar_tipo_veiculo` - Cadastrar tipo de veículo
+- `/get_all_veiculos` - Listar veículos
+- `/adicionar_veiculo` - Adicionar veículo
+- `/get_all_clientes` - Listar clientes
+- `/cadastrar_cliente` - Cadastrar cliente
+- `/get_all_funcionarios` - Listar funcionários
+- `/cadastrar_funcionario` - Cadastrar funcionário
+- `/fazer_reserva` - Fazer reserva
+- `/get_all_reservas` - Listar reservas
