@@ -1,7 +1,7 @@
 # API Locadora de Veículos
 
 ## Descrição
-Sistema de locadora de veículos com API REST e interface CLI, baseado em modelo relacional atualizado com entidade "Tipo de Veículos".
+Sistema de locadora de veículos com API REST e interface CLI, baseado em modelo relacional.
 
 ## Estrutura do Banco de Dados
 - **Tipo de Veículos**: Modelo, tipo de combustível, capacidade de passageiros
