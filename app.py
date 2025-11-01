@@ -3,38 +3,30 @@ import json
 from flask import Flask, request, jsonify
 from psutil import process_iter
 from signal import SIGTERM
-from sqlalchemy import create_engine, text
 from datetime import datetime, timedelta
+from pymongo import MongoClient
+from bson.objectid import ObjectId # Importar ObjectId para lidar com IDs do MongoDB
 
 app = Flask(__name__)
-engine = create_engine('postgresql://neondb_owner:npg_S8TCvi2xVwzP@ep-shy-heart-acwxgxm7-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require')
+
+# Configuração do MongoDB
+mongo_uri = "mongodb://localhost:27017/locadoraveiculos_db"  # Altere para a sua URI do MongoDB
+client = MongoClient(mongo_uri)
+db = client.locadoraveiculos_db # Nome do seu banco de dados
 
 # =================== ROTAS FUNCIONARIOS  =================== 
 @app.route("/get_all_funcionarios", methods=["GET"])
 def get_all_funcionarios():
-    query = text("SELECT nome, cpf, cargo, salario, endereco, dt_nasc, ativo FROM funcionarios")
-    with engine.connect() as connection:
-        result = connection.execute(query)
-        funcionarios = []
-        for row in result.fetchall():
-            # Convert each row to a dictionary manually
-            funcionario = {
-                    "nome": row[0],
-                    "cpf": row[1],
-                    "cargo": row[2],
-                    "salario": row[3],
-                    "endereco": row[4],
-                    "dt_nasc": row[5],
-                    "ativo": row[6]
-                    # Add more fields as needed
-                    }
-            funcionarios.append(funcionario)
+    funcionarios_collection = db.funcionarios
+    funcionarios = []
+    for funcionario in funcionarios_collection.find():
+        funcionario["_id"] = str(funcionario["_id"]) # Converte ObjectId para string
+        funcionarios.append(funcionario)
 
     return jsonify(funcionarios)
 
 @app.route("/cadastrar_funcionario", methods=["POST"])
 def cadastrar_funcionario():
-    # Obter os dados do funcionário a partir do corpo da requisição
     data = request.json
     nome = data.get('nome')
     cpf = data.get('cpf')
@@ -43,89 +35,69 @@ def cadastrar_funcionario():
     salario = data.get('salario')
     dt_nasc = data.get('dt_nasc')
 
-    # Utilize parâmetros na consulta SQL para evitar injeção de SQL
-    query = text("INSERT INTO funcionarios (nome, cpf, cargo, endereco, salario, dt_nasc, ativo) "
-                 "VALUES (:nome, :cpf, :cargo, :endereco, :salario, :dt_nasc, true)")
-
-    # Inserir os dados do funcionário na tabela 'funcionario'
-    with engine.connect() as connection:
-        connection.execute(query, {
-            'nome': nome,
-            'cpf': cpf,
-            'cargo': cargo,
-            'endereco': endereco,
-            'salario': salario,
-            'dt_nasc': dt_nasc
-        })
-        connection.commit()
+    funcionarios_collection = db.funcionarios
+    funcionario_data = {
+        "nome": nome,
+        "cpf": cpf,
+        "cargo": cargo,
+        "endereco": endereco,
+        "salario": salario,
+        "dt_nasc": dt_nasc,
+        "ativo": True
+    }
+    funcionarios_collection.insert_one(funcionario_data)
 
     return jsonify({"message": "Funcionário cadastrado com sucesso!"})
 
-
 @app.route("/promover_funcionario/<string:cpf>", methods=["PUT"])
 def promover_funcionario(cpf):
-    # Obter os novos dados do funcionário a partir do corpo da requisição
     data = request.json
     novo_cargo = data.get('cargo')
     novo_salario = data.get('salario')
 
-    query = text("""UPDATE funcionarios
-                    SET cargo = :novo_cargo, salario = :novo_salario
-                    WHERE cpf = :cpf""")
+    funcionarios_collection = db.funcionarios
+    result = funcionarios_collection.update_one({"cpf": cpf}, {"$set": {"cargo": novo_cargo, "salario": novo_salario}})
 
-    # Atualizar o cargo e o salário do funcionário na tabela 'funcionario'
-    with engine.connect() as connection:
-        connection.execute(query, {
-            'novo_cargo': novo_cargo,
-            'novo_salario': novo_salario,
-            'cpf': cpf
-        })
-        connection.commit()
-
-    return f"Dados do funcionário com CPF {cpf} atualizados com sucesso!"
-
+    if result.modified_count > 0:
+        return f"Dados do funcionário com CPF {cpf} atualizados com sucesso!"
+    else:
+        return f"Funcionário com CPF {cpf} não encontrado ou sem alterações." , 404
 
 @app.route("/alterar_endereco_funcionario/<string:cpf>", methods=["PUT"])
 def alterar_endereco_funcionario(cpf):
     data = request.json
     novo_endereco = data.get('endereco')
     
-    query = text("UPDATE funcionarios SET endereco = :novo_endereco WHERE cpf = :cpf")
+    funcionarios_collection = db.funcionarios
+    result = funcionarios_collection.update_one({"cpf": cpf}, {"$set": {"endereco": novo_endereco}})
 
-    # Atualizar o endereço do funcionário na tabela 'funcionarios'
-    with engine.connect() as connection:
-        connection.execute(query, {'novo_endereco': novo_endereco, 'cpf': cpf})
-        connection.commit()
-
-    return f"Endereço do funcionário com CPF {cpf} alterado com sucesso!"
+    if result.modified_count > 0:
+        return f"Endereço do funcionário com CPF {cpf} alterado com sucesso!"
+    else:
+        return f"Funcionário com CPF {cpf} não encontrado ou sem alterações.", 404
 
 @app.route("/demitir_funcionario/<string:cpf>", methods=["DELETE"])
 def demitir_funcionario(cpf):
-    query = text("UPDATE funcionarios SET ativo = false WHERE cpf = :cpf")
+    funcionarios_collection = db.funcionarios
+    result = funcionarios_collection.update_one({"cpf": cpf}, {"$set": {"ativo": False}})
 
-    with engine.connect() as connection:
-        connection.execute(query, {'cpf': cpf})
-        connection.commit()
-
-    return f"Funcionário com cpf {cpf} foi demitido com sucesso!"
-
+    if result.modified_count > 0:
+        return f"Funcionário com cpf {cpf} foi demitido com sucesso!"
+    else:
+        return f"Funcionário com CPF {cpf} não encontrado.", 404
 
 # =================== ROTAS TIPO DE VEICULOS =================== 
 @app.route("/get_all_tipo_veiculos", methods=["GET"])
 def get_all_tipo_veiculos():
-    query = text("SELECT id_tipo, modelo, tipo_combustivel, capacidade_passageiros FROM tipo_veiculos")
-
-    with engine.connect() as connection:
-        result = connection.execute(query)
-        tipos = []
-        for row in result.fetchall():
-            tipo = {
-                "id_tipo": row[0],
-                "modelo": row[1],
-                "tipo_combustivel": row[2],
-                "capacidade_passageiros": row[3]
-            }
-            tipos.append(tipo)
+    tipo_veiculos_collection = db.tipo_veiculos
+    tipos = []
+    for tipo in tipo_veiculos_collection.find():
+        tipos.append({
+            "id_tipo": str(tipo["_id"]), # Converte ObjectId para string
+            "modelo": tipo["modelo"],
+            "tipo_combustivel": tipo["tipo_combustivel"],
+            "capacidade_passageiros": tipo["capacidade_passageiros"]
+        })
 
     return jsonify(tipos)
 
@@ -136,61 +108,48 @@ def cadastrar_tipo_veiculo():
     tipo_combustivel = data.get('tipo_combustivel')
     capacidade_passageiros = data.get('capacidade_passageiros')
 
-    query = text("INSERT INTO tipo_veiculos (modelo, tipo_combustivel, capacidade_passageiros) "
-                 "VALUES (:modelo, :tipo_combustivel, :capacidade_passageiros)")
-
-    with engine.connect() as connection:
-        connection.execute(query, {
-            'modelo': modelo,
-            'tipo_combustivel': tipo_combustivel,
-            'capacidade_passageiros': capacidade_passageiros
-        })
-        connection.commit()
+    tipo_veiculos_collection = db.tipo_veiculos
+    tipo_veiculo_data = {
+        "modelo": modelo,
+        "tipo_combustivel": tipo_combustivel,
+        "capacidade_passageiros": capacidade_passageiros
+    }
+    tipo_veiculos_collection.insert_one(tipo_veiculo_data)
 
     return jsonify({"message": "Tipo de veículo cadastrado com sucesso!"})
 
 # =================== ROTAS VEICULOS =================== 
 @app.route("/get_all_veiculos", methods=["GET"])
 def get_all_veiculos():
-    query = text("""
-        SELECT v.placa, v.cor, v.quilometragem, v.valor, v.ar_condicionado, 
-               v.marca, v.id_tipo, v.ativo, tv.modelo, tv.tipo_combustivel, tv.capacidade_passageiros
-        FROM veiculos v 
-        JOIN tipo_veiculos tv ON v.id_tipo = tv.id_tipo
-    """)
-
-    with engine.connect() as connection:
-        result = connection.execute(query)
-        veiculos = []
-        for row in result.fetchall():
-            veiculo = {
-                "placa": row[0],
-                "cor": row[1],
-                "quilometragem": row[2],
-                "valor": row[3],
-                "ar_condicionado": row[4],
-                "marca": row[5],
-                "id_tipo": row[6],
-                "ativo": row[7],
-                "modelo": row[8],
-                "tipo_combustivel": row[9],
-                "capacidade_passageiros": row[10]
-            }
-            veiculos.append(veiculo)
+    veiculos_collection = db.veiculos
+    veiculos = []
+    for veiculo in veiculos_collection.find():
+        tipo_veiculo = db.tipo_veiculos.find_one({"_id": veiculo["id_tipo"]})
+        veiculos.append({
+            "_id": str(veiculo["_id"]), # Converte ObjectId para string
+            "placa": veiculo["placa"],
+            "cor": veiculo["cor"],
+            "quilometragem": veiculo["quilometragem"],
+            "valor": veiculo["valor"],
+            "ar_condicionado": veiculo["ar_condicionado"],
+            "marca": veiculo["marca"],
+            "id_tipo": str(veiculo["id_tipo"]), # Converte ObjectId para string
+            "ativo": veiculo["ativo"],
+            "modelo": tipo_veiculo["modelo"],
+            "tipo_combustivel": tipo_veiculo["tipo_combustivel"],
+            "capacidade_passageiros": tipo_veiculo["capacidade_passageiros"]
+        })
 
     return jsonify(veiculos)
 
-
 @app.route("/tirar_veiculo_frota/<string:placa>", methods=["DELETE"])
 def tirar_veiculo_frota(placa):
-    query = text("UPDATE veiculos SET ativo = False WHERE placa = :placa")
-    with engine.connect() as connection:
-        connection.execute(query, {
-            "placa": placa
-            })
-        connection.commit()
-        
-    return f"Veículo com placa {placa} foi retirado da frota com sucesso!"
+    veiculos_collection = db.veiculos
+    result = veiculos_collection.update_one({"placa": placa}, {"$set": {"ativo": False}})
+    if result.modified_count > 0:
+        return f"Veículo com placa {placa} foi retirado da frota com sucesso!"
+    else:
+        return f"Veículo com placa {placa} não encontrado ou sem alterações.", 404
 
 @app.route("/adicionar_veiculo", methods=["POST"])
 def adicionar_veiculo():
@@ -201,47 +160,50 @@ def adicionar_veiculo():
     quilometragem = data.get('quilometragem')
     valor = data.get('valor')
     ar_condicionado = data.get('ar_condicionado')
-    id_tipo = data.get('id_tipo')
+    id_tipo_str = data.get('id_tipo') # Recebe como string
     ativo = data.get('ativo', True) 
+
+    # Validar e converter id_tipo para ObjectId
+    if not ObjectId.is_valid(id_tipo_str):
+        return jsonify({"message": "ID do tipo de veículo inválido."}), 400
+    id_tipo = ObjectId(id_tipo_str)
+
+    # Verificar se o id_tipo existe
+    tipo_veiculo_existente = db.tipo_veiculos.find_one({"_id": id_tipo})
+    if not tipo_veiculo_existente:
+        return jsonify({"message": "Tipo de veículo não encontrado."}), 404
     
-    query = text("""INSERT INTO veiculos (placa, cor, marca, quilometragem, valor, ar_condicionado, id_tipo, ativo) VALUES
-            (:placa, :cor, :marca, :quilometragem, :valor, :ar_condicionado, :id_tipo, :ativo)""")
-    
-    with engine.connect() as connection:
-        connection.execute(query, {
-                'placa': placa,
-                'cor': cor,
-                'marca': marca,
-                'quilometragem': quilometragem, 
-                'valor': valor,
-                'ar_condicionado': ar_condicionado,
-                'id_tipo': id_tipo,
-                'ativo': ativo
-            })
-        connection.commit()
+    veiculos_collection = db.veiculos
+    veiculo_data = {
+        "placa": placa,
+        "cor": cor,
+        "marca": marca,
+        "quilometragem": quilometragem, 
+        "valor": valor,
+        "ar_condicionado": ar_condicionado,
+        "id_tipo": id_tipo, # Agora é um ObjectId
+        "ativo": ativo
+    }
+    veiculos_collection.insert_one(veiculo_data)
 
     return jsonify({"message": "Veículo adicionado com sucesso!"})
+
 # =========================================================== 
 
 # =================== ROTAS CLIENTES =================== 
 @app.route("/get_all_clientes", methods=["GET"])
 def get_all_clientes():
-    query = text("SELECT cod_cliente, nome, cpf, dt_nasc, endereco, cnh FROM clientes")
-    with engine.connect() as connection:
-        result = connection.execute(query)
-        clientes = []
-        for row in result.fetchall():
-            # Convert each row to a dictionary manually
-            cliente = {
-                    "cod_cliente": row[0],
-                    "nome": row[1],
-                    "cpf": row[2],
-                    "dt_nasc": row[3],
-                    "endereco": row[4],
-                    "cnh": row[5],
-                    # Add more fields as needed
-                    }
-            clientes.append(cliente)
+    clientes_collection = db.clientes
+    clientes = []
+    for cliente in clientes_collection.find():
+        clientes.append({
+            "cod_cliente": str(cliente["_id"]), # Converte ObjectId para string
+            "nome": cliente["nome"],
+            "cpf": cliente["cpf"],
+            "dt_nasc": cliente["dt_nasc"],
+            "endereco": cliente["endereco"],
+            "cnh": cliente["cnh"]
+        })
 
     return jsonify(clientes)
 
@@ -250,11 +212,9 @@ def alterar_endereco_cliente(cpf):
     data = request.json
     novo_endereco = data.get('endereco')
 
-    query = text("UPDATE clientes SET endereco = :novo_endereco WHERE cpf = :cpf")
-
-    with engine.connect() as connection:
-        connection.execute(query, {'cpf': cpf, 'novo_endereco': novo_endereco})
-        connection.commit()
+    clientes_collection = db.clientes
+    cliente_data = {"endereco": novo_endereco}
+    clientes_collection.update_one({"cpf": cpf}, {"$set": cliente_data})
 
     return jsonify({"message": f"Endereço do cliente com CPF {cpf} alterado com sucesso!"})
 
@@ -267,18 +227,15 @@ def cadastrar_cliente():
     cpf = data.get('cpf')
     endereco = data.get('endereco')
 
-    query = text("INSERT INTO clientes (dt_nasc, cnh, nome, cpf, endereco) "
-                 "VALUES (:dt_nasc, :cnh, :nome, :cpf, :endereco)")
-
-    with engine.connect() as connection:
-        connection.execute(query,{
-            'dt_nasc': dt_nasc,
-            'cnh': cnh,
-            'nome': nome,
-            'cpf': cpf,
-            'endereco': endereco
-        })
-        connection.commit()
+    clientes_collection = db.clientes
+    cliente_data = {
+        "dt_nasc": dt_nasc,
+        "cnh": cnh,
+        "nome": nome,
+        "cpf": cpf,
+        "endereco": endereco
+    }
+    clientes_collection.insert_one(cliente_data)
     return jsonify({"message": "Cliente cadastrado com sucesso!"})
 # =========================================== 
 @app.route("/fazer_reserva", methods=["POST"])
@@ -290,26 +247,22 @@ def fazer_reserva():
     cod_cliente = 0
 
     # Obtendo o código do cliente a partir do CPF
-    query_cod_cliente = text("SELECT cod_cliente FROM clientes WHERE cpf = :cpf")
-    with engine.connect() as connection:
-        result = connection.execute(query_cod_cliente, {"cpf": cpf})
-        row = result.fetchone()
-        if row:
-            cod_cliente = row[0]
-        else:
-            return "Cliente não encontrado", 404
+    clientes_collection = db.clientes
+    cliente = clientes_collection.find_one({"cpf": cpf})
+    if cliente:
+        cod_cliente = cliente["_id"]
+    else:
+        return "Cliente não encontrado", 404
 
     cpf_funcionario = data.get("cpf_funcionario")
 
     # Obtendo o ID do funcionário a partir do CPF
-    query_id_funcionario = text("SELECT id_funcionario FROM funcionarios WHERE cpf = :cpf_funcionario")
-    with engine.connect() as connection:
-        result = connection.execute(query_id_funcionario, {"cpf_funcionario": cpf_funcionario})
-        row = result.fetchone()
-        if row:
-            id_funcionario = row[0]
-        else:
-            return "Funcionário não encontrado", 404
+    funcionarios_collection = db.funcionarios
+    funcionario = funcionarios_collection.find_one({"cpf": cpf_funcionario})
+    if funcionario:
+        id_funcionario = funcionario["_id"]
+    else:
+        return "Funcionário não encontrado", 404
 
     dias = int(data.get("dias"))
     dt_reserva = data.get("dt_reserva")
@@ -319,73 +272,259 @@ def fazer_reserva():
     dt_devolucao_obj = dt_reserva_obj + timedelta(days=dias)
     dt_devolucao = dt_devolucao_obj.isoformat()
 
-    id_tipo = data.get("id_tipo")
-    
-    # Obter valor médio dos veículos deste tipo para cálculo
-    query_valor_tipo = text("SELECT AVG(valor) FROM veiculos WHERE id_tipo = :id_tipo AND ativo = true")
-    with engine.connect() as connection:
-        result = connection.execute(query_valor_tipo, {"id_tipo": id_tipo})
-        row = result.fetchone()
-        if row and row[0]:
-            vlr_medio_tipo = row[0]
-        else:
-            return "Tipo de veículo não encontrado ou sem veículos disponíveis", 404
+    # Modificado para receber a placa_veiculo diretamente
+    placa_veiculo = data.get("placa_veiculo")
 
-    # Calcular o valor da reserva
-    valor = calcular_valor_reserva(vlr_medio_tipo, dias)
+    # Verificar se o veículo existe e está ativo
+    veiculos_collection = db.veiculos
+    veiculo = veiculos_collection.find_one({"placa": placa_veiculo, "ativo": True})
+    if not veiculo:
+        return jsonify({"message": "Veículo não encontrado ou inativo."}), 404
+    valor_veiculo = veiculo["valor"]
+
+    # Verificar se o veículo já está reservado no período
+    reservas_collection = db.reservas
+    reserva_existente = reservas_collection.find_one({
+        "placa_veiculo": placa_veiculo,
+        "status": "Ativa",
+        "$or": [
+            {"$and": [{"dt_reserva": {"$lte": dt_reserva_obj.isoformat()}}, {"dt_devolucao": {"$gte": dt_reserva_obj.isoformat()}}]},
+            {"$and": [{"dt_reserva": {"$lte": dt_devolucao_obj.isoformat()}}, {"dt_devolucao": {"$gte": dt_devolucao_obj.isoformat()}}]},
+            {"$and": [{"dt_reserva": {"$gte": dt_reserva_obj.isoformat()}}, {"dt_devolucao": {"$lte": dt_devolucao_obj.isoformat()}}]}
+        ]
+    })
+
+    if reserva_existente:
+        return jsonify({"message": "Veículo já reservado para o período selecionado."}), 409 # Conflict
+
+    # Calcular o valor da reserva com base no valor do veículo específico
+    valor = calcular_valor_reserva(valor_veiculo, dias)
     status = data.get("status", "Ativa")
 
-    # Gravar na tabela reservas
-    query_reservas = text("INSERT INTO reservas (cod_cliente, id_funcionario, id_tipo, valor, dt_reserva, dt_devolucao, status) VALUES (:cod_cliente, :id_funcionario, :id_tipo, :valor, :dt_reserva, :dt_devolucao, :status)")
-    with engine.connect() as connection:
-        connection.execute(query_reservas, {
-            "cod_cliente": cod_cliente,
-            "id_funcionario": id_funcionario,
-            "id_tipo": id_tipo,
-            "valor": valor,
-            "dt_reserva": dt_reserva,
-            "dt_devolucao": dt_devolucao,
-            "status": status
-        })
-        connection.commit()
+    # Gravar na tabela reservas (com placa_veiculo)
+    reservas_collection.insert_one({
+        "cod_cliente": cod_cliente,
+        "id_funcionario": id_funcionario,
+        "placa_veiculo": placa_veiculo,
+        "valor": valor,
+        "dt_reserva": dt_reserva,
+        "dt_devolucao": dt_devolucao,
+        "status": status
+    })
     print("Reserva realizada com sucesso!")
     return jsonify(valor)
 
-
 @app.route("/get_all_reservas", methods=["GET"])
 def get_all_reservas():
-    query = text("""
-        SELECT r.cod_reserva, r.cod_cliente, r.id_funcionario, r.id_tipo, r.valor, 
-               r.dt_reserva, r.dt_devolucao, r.status, tv.modelo, tv.tipo_combustivel
-        FROM reservas r 
-        JOIN tipo_veiculos tv ON r.id_tipo = tv.id_tipo
-    """)
-    with engine.connect() as connection:
-        result = connection.execute(query)
-        reservas = []
-        for row in result.fetchall():
-            reserva = {
-                "cod_reserva": row[0],
-                "cod_cliente": row[1],
-                "id_funcionario": row[2],
-                "id_tipo": row[3],
-                "valor": row[4],
-                "dt_reserva": row[5],
-                "dt_devolucao": row[6],
-                "status": row[7],
-                "modelo": row[8],
-                "tipo_combustivel": row[9]
-            }
-            reservas.append(reserva)
+    reservas_collection = db.reservas
+    reservas = []
+    for reserva in reservas_collection.find():
+        veiculo = db.veiculos.find_one({"placa": reserva["placa_veiculo"]})
+        tipo_veiculo = db.tipo_veiculos.find_one({"_id": veiculo["id_tipo"]})
+        reservas.append({
+            "cod_reserva": str(reserva["_id"]),
+            "cod_cliente": str(reserva["cod_cliente"]),
+            "id_funcionario": str(reserva["id_funcionario"]),
+            "placa_veiculo": reserva["placa_veiculo"],
+            "valor": reserva["valor"],
+            "dt_reserva": reserva["dt_reserva"],
+            "dt_devolucao": reserva["dt_devolucao"],
+            "status": reserva["status"],
+            "modelo": tipo_veiculo["modelo"],
+            "tipo_combustivel": tipo_veiculo["tipo_combustivel"]
+        })
 
     return jsonify(reservas)
+
+@app.route("/get_reservas_by_cliente", methods=["POST"])
+def get_reservas_by_cliente():
+    data = request.json
+    cpf_cliente = data.get("cpf")
+
+    if not cpf_cliente:
+        return jsonify({"message": "CPF do cliente é obrigatório"}), 400
+
+    clientes_collection = db.clientes
+    cliente = clientes_collection.find_one({"cpf": cpf_cliente})
+    if not cliente:
+        return jsonify({"message": "Cliente não encontrado."}), 404
+
+    reservas_collection = db.reservas
+    reservas_cliente = []
+    for reserva in reservas_collection.find({"cod_cliente": cliente["_id"]}):
+        veiculo = db.veiculos.find_one({"placa": reserva["placa_veiculo"]})
+        tipo_veiculo = db.tipo_veiculos.find_one({"_id": veiculo["id_tipo"]})
+        reservas_cliente.append({
+            "cod_reserva": str(reserva["_id"]),
+            "cod_cliente": str(reserva["cod_cliente"]),
+            "id_funcionario": str(reserva["id_funcionario"]),
+            "placa_veiculo": reserva["placa_veiculo"],
+            "valor": reserva["valor"],
+            "dt_reserva": reserva["dt_reserva"],
+            "dt_devolucao": reserva["dt_devolucao"],
+            "status": reserva["status"],
+            "modelo": tipo_veiculo["modelo"],
+            "tipo_combustivel": tipo_veiculo["tipo_combustivel"],
+            "nome_cliente": cliente["nome"]
+        })
+
+    if not reservas_cliente:
+        return jsonify({"message": "Nenhuma reserva encontrada para o CPF fornecido."}), 404
+
+    return jsonify(reservas_cliente)
+
+@app.route("/relatorio_veiculos_mais_alugados", methods=["GET"])
+def relatorio_veiculos_mais_alugados():
+    reservas_collection = db.reservas
+    relatorio = []
+    for result in reservas_collection.aggregate([
+        {"$group": {"_id": "$placa_veiculo", "numero_reservas": {"$sum": 1}}},
+        {"$sort": {"numero_reservas": -1}}
+    ]):
+        veiculo_id = result["_id"]
+        count = result["numero_reservas"]
+        veiculo = db.veiculos.find_one({"placa": veiculo_id})
+        if veiculo: # Adicionar verificação para o caso de o veículo não ser encontrado
+            tipo_veiculo = db.tipo_veiculos.find_one({"_id": veiculo["id_tipo"]})
+            if tipo_veiculo:
+                relatorio.append({
+                    "placa": veiculo["placa"],
+                    "marca": veiculo["marca"],
+                    "modelo": tipo_veiculo["modelo"],
+                    "tipo_combustivel": tipo_veiculo["tipo_combustivel"],
+                    "numero_reservas": count
+                })
+    
+    if not relatorio:
+        return jsonify({"message": "Nenhum veículo encontrado em reservas."}), 404
+
+    return jsonify(relatorio)
+
+@app.route("/relatorio_faturamento_por_periodo", methods=["POST"])
+def relatorio_faturamento_por_periodo():
+    data = request.json
+    start_date_str = data.get("start_date")
+    end_date_str = data.get("end_date")
+    num_meses = data.get("num_meses")
+
+    # Se num_meses for fornecido, ou se nenhuma data for fornecida, calcula o período
+    if num_meses is not None:
+        try:
+            num_meses = int(num_meses)
+            if num_meses <= 0:
+                return jsonify({"message": "Número de meses deve ser um valor positivo."}), 400
+        except ValueError:
+            return jsonify({"message": "Número de meses inválido."}), 400
+
+        end_date_obj = datetime.now()
+        start_date_obj = end_date_obj - timedelta(days=num_meses * 30) # Aproximação
+        
+        start_date_str = start_date_obj.isoformat()
+        end_date_str = end_date_obj.isoformat()
+    elif not start_date_str or not end_date_str: # Se nenhuma data for fornecida, usa padrão de 3 meses
+        end_date_obj = datetime.now()
+        start_date_obj = end_date_obj - timedelta(days=3 * 30) # Padrão de 3 meses
+        
+        start_date_str = start_date_obj.isoformat()
+        end_date_str = end_date_obj.isoformat()
+    
+    # Validação e conversão de datas se foram fornecidas explicitamente
+    try:
+        start_date = datetime.fromisoformat(start_date_str).date()
+        end_date = datetime.fromisoformat(end_date_str).date()
+    except ValueError:
+        return jsonify({"message": "Formato de data inválido. Use YYYY-MM-DD."}), 400
+
+    reservas_collection = db.reservas
+    pipeline = [
+        {"$match": {
+            "dt_reserva": {"$gte": start_date_str, "$lte": end_date_str}}},
+        {"$group": {
+            "_id": None,
+            "faturamento_total": {"$sum": "$valor"},
+            "numero_reservas": {"$sum": 1}
+        }}
+    ]
+    faturamento_result = next(reservas_collection.aggregate(pipeline), {"faturamento_total": 0.0, "numero_reservas": 0})
+
+    return jsonify({
+        "periodo_inicio": start_date_str.split('T')[0],
+        "periodo_fim": end_date_str.split('T')[0],
+        "faturamento_total": faturamento_result["faturamento_total"],
+        "numero_reservas": faturamento_result["numero_reservas"]
+    })
+
+@app.route("/relatorio_clientes_mais_reservas", methods=["GET"])
+def relatorio_clientes_mais_reservas():
+    reservas_collection = db.reservas
+    relatorio = []
+    for result in reservas_collection.aggregate([
+        {"$group": {"_id": "$cod_cliente", "numero_reservas": {"$sum": 1}}},
+        {"$sort": {"numero_reservas": -1}}
+    ]):
+        cliente_id = result["_id"]
+        count = result["numero_reservas"]
+        cliente = db.clientes.find_one({"_id": cliente_id})
+        if cliente: # Adicionar verificação para o caso de o cliente não ser encontrado
+            relatorio.append({
+                "nome_cliente": cliente["nome"],
+                "cpf_cliente": cliente["cpf"],
+                "numero_reservas": count
+            })
+    
+    if not relatorio:
+        return jsonify({"message": "Nenhum cliente encontrado com reservas."}), 404
+
+    return jsonify(relatorio)
+
+@app.route("/get_available_veiculos", methods=["GET"])
+def get_available_veiculos():
+    start_date_str = request.args.get("start_date")
+    end_date_str = request.args.get("end_date")
+
+    if not start_date_str or not end_date_str:
+        return jsonify({"message": "Datas de início e fim são obrigatórias."}), 400
+
+    try:
+        start_date = datetime.fromisoformat(start_date_str).date()
+        end_date = datetime.fromisoformat(end_date_str).date()
+    except ValueError:
+        return jsonify({"message": "Formato de data inválido. Use YYYY-MM-DD."}), 400
+
+    # Buscar reservas ativas que se sobrepõem ao período desejado
+    reservas_conflitantes = db.reservas.find({
+        "status": "Ativa",
+        "$or": [
+            {"$and": [{"dt_reserva": {"$lte": end_date_str}}, {"dt_devolucao": {"$gte": start_date_str}}]},
+            {"$and": [{"dt_reserva": {"$gte": start_date_str}}, {"dt_devolucao": {"$lte": end_date_str}}]}
+        ]
+    })
+    placas_reservadas = [reserva["placa_veiculo"] for reserva in reservas_conflitantes]
+
+    # Buscar veículos ativos que não estão nas placas reservadas
+    veiculos_collection = db.veiculos
+    available_veiculos = []
+    for veiculo in veiculos_collection.find({"ativo": True, "placa": {"$nin": placas_reservadas}}):
+        tipo_veiculo = db.tipo_veiculos.find_one({"_id": veiculo["id_tipo"]})
+        available_veiculos.append({
+            "placa": veiculo["placa"],
+            "marca": veiculo["marca"],
+            "modelo": tipo_veiculo["modelo"],
+            "tipo_combustivel": tipo_veiculo["tipo_combustivel"],
+            "valor": veiculo["valor"],
+            "ar_condicionado": veiculo["ar_condicionado"]
+        })
+    
+    if not available_veiculos:
+        return jsonify({"message": "Nenhum veículo disponível para o período selecionado."}), 404
+
+    return jsonify(available_veiculos)
 
 def calcular_valor_reserva(vlr_carro, dias):
     vlr = float(vlr_carro)
     temp = int(dias)
     valor_por_dia = (0.001 * vlr) + 10
     return valor_por_dia * temp
-
 
 @app.route("/")
 def hello_world():

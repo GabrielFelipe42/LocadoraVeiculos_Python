@@ -1,5 +1,6 @@
 import json
 import requests
+from datetime import datetime, timedelta
 
 local_host = "http://127.0.0.1:8080"
 
@@ -46,7 +47,7 @@ def cadastrar_tipo_veiculo():
 
 def adicionar_veiculo():
     get_all_tipo_veiculos()
-    id_tipo = int(input("ID do tipo de veículo: "))
+    id_tipo = input("ID do tipo de veículo: ") # Alterado para receber como string
     placa = input("Placa do veículo: ")
     cor = input("Cor: ")
     marca = input("Marca: ")
@@ -62,7 +63,7 @@ def adicionar_veiculo():
         "quilometragem": quilometragem,
         "valor": valor,
         "ar_condicionado": ar_condicionado,
-        "id_tipo": id_tipo,
+        "id_tipo": id_tipo, # Enviado como string para a API
         "ativo": ativo
     }
 
@@ -70,6 +71,10 @@ def adicionar_veiculo():
     
     if response.status_code == 200:
         return "Veículo cadastrado com sucesso!"
+    elif response.status_code == 400:
+        return response.json().get("message", "Erro ao cadastrar o veículo: ID do tipo de veículo inválido.")
+    elif response.status_code == 404:
+        return response.json().get("message", "Erro ao cadastrar o veículo: Tipo de veículo não encontrado.")
     else:
         return "Erro ao cadastrar o veículo."
 
@@ -133,9 +138,11 @@ def alterar_endereco_cliente():
     
     response = requests.put(local_host + f"/alterar_endereco_cliente/{cpf}", json=cliente_data)
     if response.status_code == 200:
-        return "Endereco do cliente alterado com sucesso!";
+        return "Endereço do cliente alterado com sucesso!"
+    elif response.status_code == 404:
+        return response.json().get("message", f"Cliente com CPF {cpf} não encontrado.")
     else:
-        return "Erro ao alterar o enredeço do cliente"
+        return response.json().get("message", "Erro ao alterar o endereço do cliente.")
 
 
 def cadastrar_cliente():
@@ -143,7 +150,7 @@ def cadastrar_cliente():
     cpf = input("CPF: ")
     dt_nasc = input("Data de nascimento (no formato YYYY-MM-DD): ")
     endereco = input("Endereço: ")
-    cnh = input("CNH: ")
+    cnh = input("CNH: ") # Corrigido o erro de digitação
 
     # Criar o dicionário com os dados do cliente
     cliente_data = {
@@ -160,7 +167,7 @@ def cadastrar_cliente():
     if response.status_code == 200:
         return "Cliente cadastrado com sucesso!"
     else:
-        return "Erro ao cadastrar o cliente."
+        return response.json().get("message", "Erro ao cadastrar o cliente.")
 
 def cadastrar_funcionario():
     nome = input("Nome: ")
@@ -238,6 +245,7 @@ def get_all_reservas():
             print("Código da reserva:", reserva["cod_reserva"])
             print("Código do cliente:", reserva["cod_cliente"])
             print("ID do funcionário:", reserva["id_funcionario"])
+            print("Placa do veículo:", reserva["placa_veiculo"])
             print("Tipo de veículo:", reserva["modelo"], "(" + reserva["tipo_combustivel"] + ")")
             print("Valor:", reserva["valor"])
             print("Data da reserva:", reserva["dt_reserva"])
@@ -248,10 +256,135 @@ def get_all_reservas():
         return "Erro ao listar reservas"
 
 
-def fazer_reserva():
-    get_all_tipo_veiculos()
-    id_tipo = input("ID do tipo de veículo:")
+def get_reservas_by_cliente_cli():
+    get_all_clientes() # Adicionado para listar os clientes antes de pedir o CPF
+    cpf_cliente = input("Digite o CPF do cliente para ver as reservas: ")
+    
+    payload = {"cpf": cpf_cliente}
+    response = requests.post(local_host + "/get_reservas_by_cliente", json=payload)
 
+    if response.status_code == 200:
+        reservas = response.json()
+        print(f"\n--- Relatório de Reservas para o Cliente (CPF: {cpf_cliente}) ---")
+        for reserva in reservas:
+            print("Código da reserva:", reserva["cod_reserva"])
+            print("Nome do Cliente:", reserva["nome_cliente"])
+            print("Placa do veículo:", reserva["placa_veiculo"])
+            print("Tipo de veículo:", reserva["modelo"], "(" + reserva["tipo_combustivel"] + ")")
+            print("Valor:", reserva["valor"])
+            print("Data da reserva:", reserva["dt_reserva"])
+            print("Data de devolução:", reserva["dt_devolucao"])
+            print("Status:", reserva["status"])
+            print("#####################################")
+        return "Relatório gerado com sucesso!"
+    elif response.status_code == 404:
+        return response.json().get("message", "Nenhuma reserva encontrada para o CPF fornecido.")
+    else:
+        return response.json().get("message", "Erro ao gerar relatório de reservas por cliente.")
+
+
+def relatorio_veiculos_mais_alugados_cli():
+    response = requests.get(local_host + "/relatorio_veiculos_mais_alugados")
+
+    if response.status_code == 200:
+        relatorio = response.json()
+        print("\n--- Relatório de Veículos Mais Alugados ---")
+        for veiculo in relatorio:
+            print("Placa:", veiculo["placa"])
+            print("Marca:", veiculo["marca"])
+            print("Modelo:", veiculo["modelo"])
+            print("Tipo de combustível:", veiculo["tipo_combustivel"])
+            print("Número de Reservas:", veiculo["numero_reservas"])
+            print("#####################################")
+        return "Relatório gerado com sucesso!"
+    elif response.status_code == 404:
+        return response.json().get("message", "Nenhum veículo encontrado em reservas.")
+    else:
+        return response.json().get("message", "Erro ao gerar relatório de veículos mais alugados.")
+
+
+def relatorio_faturamento_por_periodo_cli():
+    print("\n--- Relatório de Faturamento por Período ---")
+    
+    payload = {}
+    escolha = input("Deseja informar um período (P) ou o número de meses (M)? [P/M]: ").upper()
+
+    if escolha == 'P':
+        start_date = input("Digite a data de início (YYYY-MM-DD): ")
+        end_date = input("Digite a data de fim (YYYY-MM-DD): ")
+        payload = {"start_date": start_date, "end_date": end_date}
+    elif escolha == 'M':
+        num_meses = input("Digite o número de meses para o relatório (ex: 3 para últimos 3 meses): ")
+        payload = {"num_meses": num_meses}
+    else:
+        print("Opção inválida. Gerando relatório padrão para os últimos 3 meses.")
+        # API já tem um padrão, então podemos enviar um payload vazio ou apenas para indicar a intenção
+        payload = {"num_meses": 3} # Enviando explicitamente 3 meses como padrão
+
+    response = requests.post(local_host + "/relatorio_faturamento_por_periodo", json=payload)
+
+    if response.status_code == 200:
+        relatorio = response.json()
+        periodo_inicio = relatorio.get("periodo_inicio")
+        periodo_fim = relatorio.get("periodo_fim")
+        faturamento_total = relatorio.get("faturamento_total")
+        numero_reservas = relatorio.get("numero_reservas")
+        
+        print(f"Período: {periodo_inicio} a {periodo_fim}")
+        print(f"Faturamento Total: R$ {faturamento_total:.2f}")
+        print(f"Número Total de Reservas: {numero_reservas}")
+        print("#####################################")
+        return "Relatório de faturamento gerado com sucesso!"
+    else:
+        return response.json().get("message", "Erro ao gerar relatório de faturamento por período.")
+
+
+def relatorio_clientes_mais_reservas_cli():
+    response = requests.get(local_host + "/relatorio_clientes_mais_reservas")
+
+    if response.status_code == 200:
+        relatorio = response.json()
+        print("\n--- Relatório de Clientes com Mais Reservas ---")
+        for cliente in relatorio:
+            print("Nome do Cliente:", cliente["nome_cliente"])
+            print("CPF do Cliente:", cliente["cpf_cliente"])
+            print("Número de Reservas:", cliente["numero_reservas"])
+            print("#####################################")
+        return "Relatório gerado com sucesso!"
+    elif response.status_code == 404:
+        return response.json().get("message", "Nenhum cliente encontrado com reservas.")
+    else:
+        return response.json().get("message", "Erro ao gerar relatório de clientes com mais reservas.")
+
+def get_available_veiculos_cli():
+    print("\n--- Verificar Veículos Disponíveis ---")
+    start_date = input("Data de início da reserva (YYYY-MM-DD): ")
+    end_date = input("Data de fim da reserva (YYYY-MM-DD): ")
+
+    params = {"start_date": start_date, "end_date": end_date}
+    response = requests.get(local_host + "/get_available_veiculos", params=params)
+
+    if response.status_code == 200:
+        veiculos = response.json()
+        print("\nVeículos Disponíveis para o período:")
+        for veiculo in veiculos:
+            print("Placa:", veiculo["placa"])
+            print("Marca:", veiculo["marca"])
+            print("Modelo:", veiculo["modelo"])
+            print("Tipo de Combustível:", veiculo["tipo_combustivel"])
+            print("Valor:", veiculo["valor"])
+            print("Ar Condicionado:", "Sim" if veiculo["ar_condicionado"] else "Não")
+            print("#####################################")
+        return veiculos
+    elif response.status_code == 404:
+        print(response.json().get("message", "Nenhum veículo disponível para o período selecionado."))
+        return []
+    else:
+        print(response.json().get("message", "Erro ao listar veículos disponíveis."))
+        return []
+
+def fazer_reserva():
+    
     get_all_clientes()
     cpf = input("CPF do cliente:")
 
@@ -260,6 +393,28 @@ def fazer_reserva():
 
     dt_reserva = input("Data inicio da reserva (no formato YYYY-MM-DD): ")
     dias = input("Quantidade de dias:")
+    
+    # Calcular a data de devolução para listar veículos disponíveis
+    # (A validação de data e conversão para objeto datetime já é feita na API)
+    # Mas precisamos de uma data de fim para a requisição de veículos disponíveis
+    try:
+        dt_reserva_obj = datetime.fromisoformat(dt_reserva)
+        dt_devolucao_obj = dt_reserva_obj + timedelta(days=int(dias))
+        dt_devolucao_str = dt_devolucao_obj.isoformat()
+    except ValueError:
+        return "Erro: Formato de data ou dias inválido. Use YYYY-MM-DD para a data."
+    except Exception as e:
+        return f"Erro inesperado ao calcular data de devolução: {e}"
+
+    available_veiculos = get_available_veiculos_cli(start_date=dt_reserva, end_date=dt_devolucao_str) # Passar datas para a função
+    if not available_veiculos:
+        return "Não foi possível realizar a reserva, pois não há veículos disponíveis para o período."
+
+    placa_veiculo = input("Digite a placa do veículo a ser reservado: ")
+    # Verificar se a placa escolhida está entre os veículos disponíveis
+    if not any(v['placa'] == placa_veiculo for v in available_veiculos):
+        return "Placa do veículo inválida ou não disponível para o período."
+
     status = input("Status da reserva (padrão: Ativa): ") or "Ativa"
 
     reserva_data = { 
@@ -267,7 +422,7 @@ def fazer_reserva():
             "cpf_funcionario": cpf_funcionario,
             "dias": dias,
             "dt_reserva": dt_reserva,
-            "id_tipo": id_tipo,
+            "placa_veiculo": placa_veiculo, # Agora passamos a placa do veículo
             "status": status
             }
 
@@ -277,6 +432,10 @@ def fazer_reserva():
         valor = response.json()  # Extracting the value from the JSON response
         print("Valor da reserva:", valor)
         return "Reserva realizada com sucesso!"
+    elif response.status_code == 404:
+        return response.json().get("message", "Cliente, funcionário ou veículo não encontrado.")
+    elif response.status_code == 409:
+        return response.json().get("message", "Veículo já reservado para o período selecionado.")
     else:
-        return "Erro ao realizar a reserva."
+        return response.json().get("message", "Erro ao realizar a reserva.")
 

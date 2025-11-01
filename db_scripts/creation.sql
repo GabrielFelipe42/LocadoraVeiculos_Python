@@ -44,23 +44,24 @@ CREATE TABLE reservas (
     cod_reserva SERIAL PRIMARY KEY,
     cod_cliente INTEGER,
     id_funcionario INTEGER,
-    id_tipo INTEGER,
+    placa_veiculo VARCHAR(10), -- Adicionado para referenciar um veículo específico
     valor NUMERIC,
     dt_reserva DATE,
     dt_devolucao DATE,
     status VARCHAR(50),
     FOREIGN KEY (cod_cliente) REFERENCES clientes(cod_cliente),
     FOREIGN KEY (id_funcionario) REFERENCES funcionarios(id_funcionario),
-    FOREIGN KEY (id_tipo) REFERENCES tipo_veiculos(id_tipo)
+    FOREIGN KEY (placa_veiculo) REFERENCES veiculos(placa)
 );
 
-CREATE TABLE veiculos_reservados (
-    cod_reserva INTEGER,
-    placa VARCHAR(50),
-    PRIMARY KEY (cod_reserva, placa),
-    FOREIGN KEY (cod_reserva) REFERENCES reservas(cod_reserva),
-    FOREIGN KEY (placa) REFERENCES veiculos(placa)
-);
+-- A tabela veiculos_reservados não é mais necessária para o relacionamento 1:N
+-- CREATE TABLE veiculos_reservados (
+--     cod_reserva INTEGER,
+--     placa VARCHAR(50),
+--     PRIMARY KEY (cod_reserva, placa),
+--     FOREIGN KEY (cod_reserva) REFERENCES reservas(cod_reserva),
+--     FOREIGN KEY (placa) REFERENCES veiculos(placa)
+-- );
 
 
 -- Inserir dados na tabela de tipos de veículos
@@ -101,16 +102,16 @@ VALUES
     ('1980-09-05', '987654321', 'Pedro Rocha', '65498732105', 'Rua das Pedras, 456'),
     ('1975-12-10', '654321987', 'Carla Lima', '32165498708', 'Travessa das Flores, 123');
 
--- Inserir dados na tabela de reservas
-INSERT INTO reservas (cod_cliente, id_funcionario, id_tipo, valor, dt_reserva, dt_devolucao, status) 
+-- Inserir dados na tabela de reservas (ajustado para incluir placa_veiculo)
+INSERT INTO reservas (cod_cliente, id_funcionario, placa_veiculo, valor, dt_reserva, dt_devolucao, status) 
 VALUES 
-    (1, 2, 1, 150.00, '2024-05-10', '2024-05-15', 'Ativa'),
-    (2, 3, 2, 200.00, '2024-06-01', '2024-06-07', 'Ativa'),
-    (3, 1, 3, 180.00, '2024-07-20', '2024-07-25', 'Finalizada');
+    (1, 2, 'ABC1234', 150.00, '2024-05-10', '2024-05-15', 'Ativa'),
+    (2, 3, 'DEF5678', 200.00, '2024-06-01', '2024-06-07', 'Ativa'),
+    (3, 1, 'GHI91011', 180.00, '2024-07-20', '2024-07-25', 'Finalizada');
 
--- Inserir dados na tabela de veículos reservados
-INSERT INTO veiculos_reservados (cod_reserva, placa) 
-VALUES 
-    (1, 'ABC1234'),
-    (2, 'DEF5678'),
-    (3, 'GHI91011');
+-- A tabela veiculos_reservados não é mais necessária, então seus inserts são removidos
+-- INSERT INTO veiculos_reservados (cod_reserva, placa) 
+-- VALUES 
+--     (1, 'ABC1234'),
+--     (2, 'DEF5678'),
+--     (3, 'GHI91011');
