@@ -70,9 +70,23 @@ clientes_map = {c["cpf"]: _id for c, _id in zip(clientes_data, clientes_ids)}
 # Inserir dados na coleção reservas
 # Note que dt_reserva e dt_devolucao são armazenadas como strings ISO para compatibilidade com Flask/JSON
 reservas_data = [
-    {"cod_cliente": clientes_map["78945612302"], "id_funcionario": funcionarios_map["98765432109"], "placa_veiculo": "ABC1234", "valor": 150.00, "dt_reserva": "2024-05-10", "dt_devolucao": "2024-05-15", "status": "Ativa"},
-    {"cod_cliente": clientes_map["65498732105"], "id_funcionario": funcionarios_map["45678912306"], "placa_veiculo": "DEF5678", "valor": 200.00, "dt_reserva": "2024-06-01", "dt_devolucao": "2024-06-07", "status": "Ativa"},
+    {"cod_cliente": clientes_map["78945612302"], "id_funcionario": funcionarios_map["98765432109"], "placa_veiculo": "ABC1234", "valor": 150.00, "dt_reserva": "2024-05-10", "dt_devolucao": "2024-05-15", "status": "Finalizada"},
+    {"cod_cliente": clientes_map["65498732105"], "id_funcionario": funcionarios_map["45678912306"], "placa_veiculo": "DEF5678", "valor": 200.00, "dt_reserva": "2024-06-01", "dt_devolucao": "2024-06-07", "status": "Finalizada"},
     {"cod_cliente": clientes_map["32165498708"], "id_funcionario": funcionarios_map["12345678901"], "placa_veiculo": "GHI91011", "valor": 180.00, "dt_reserva": "2024-07-20", "dt_devolucao": "2024-07-25", "status": "Finalizada"},
+    
+    # Novas reservas para simular mais atividade e desbalancear para Ana Souza
+    # Ana Souza (78945612302) com mais reservas
+    {"cod_cliente": clientes_map["78945612302"], "id_funcionario": funcionarios_map["98765432109"], "placa_veiculo": "ABC1234", "valor": 120.00, "dt_reserva": "2024-10-01", "dt_devolucao": "2024-10-03", "status": "Ativa"},
+    {"cod_cliente": clientes_map["78945612302"], "id_funcionario": funcionarios_map["98765432109"], "placa_veiculo": "JKL3456", "valor": 250.00, "dt_reserva": "2024-11-10", "dt_devolucao": "2024-11-15", "status": "Ativa"},
+    {"cod_cliente": clientes_map["78945612302"], "id_funcionario": funcionarios_map["45678912306"], "placa_veiculo": "PQR9012", "valor": 300.00, "dt_reserva": "2024-12-01", "dt_devolucao": "2024-12-05", "status": "Ativa"},
+    {"cod_cliente": clientes_map["78945612302"], "id_funcionario": funcionarios_map["98765432109"], "placa_veiculo": "ABC1234", "valor": 100.00, "dt_reserva": "2025-01-05", "dt_devolucao": "2025-01-07", "status": "Ativa"},
+
+    # Pedro Rocha (65498732105) com mais algumas reservas
+    {"cod_cliente": clientes_map["65498732105"], "id_funcionario": funcionarios_map["34567890123"], "placa_veiculo": "MNO6789", "valor": 180.00, "dt_reserva": "2024-09-15", "dt_devolucao": "2024-09-18", "status": "Ativa"},
+    {"cod_cliente": clientes_map["65498732105"], "id_funcionario": funcionarios_map["34567890123"], "placa_veiculo": "DEF5678", "valor": 220.00, "dt_reserva": "2025-02-01", "dt_devolucao": "2025-02-05", "status": "Ativa"},
+
+    # Carla Lima (32165498708) com menos reservas
+    {"cod_cliente": clientes_map["32165498708"], "id_funcionario": funcionarios_map["78901234567"], "placa_veiculo": "GHI91011", "valor": 160.00, "dt_reserva": "2024-11-20", "dt_devolucao": "2024-11-22", "status": "Ativa"},
 ]
 db.reservas.insert_many(reservas_data)
 
