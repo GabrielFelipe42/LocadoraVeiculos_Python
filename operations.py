@@ -105,33 +105,47 @@ def get_all_funcionarios():
 
     if response.status_code == 200:
         funcionarios = response.json()
-        for funcionario in funcionarios:
-
-            if (funcionario["ativo"] == False):
-                continue
-            else:
-                print("########################")
-                print("Nome: ", funcionario["nome"])
-                print("CPF: ", funcionario["cpf"])
-                print("Cargo: ", funcionario["cargo"])
+        print("\n--- Lista de Funcionários ---")
+        for i, funcionario in enumerate(funcionarios):
+            if funcionario["ativo"] == True:
+                print(f"{i+1}. Nome: {funcionario['nome']}, CPF: {funcionario['cpf']}, Cargo: {funcionario['cargo']}")
+        print("---------------------------")
+        return funcionarios
     else:
-        print ("Erro ao listar funcionarios")
+        print("Erro ao listar funcionários")
+        return None
 
 
 def get_all_clientes():
-    response = requests.get(local_host + "/get_all_clientes");
+    response = requests.get(local_host + "/get_all_clientes")
 
     if response.status_code == 200:
         clientes = response.json()
-        for cliente in clientes:
-            print("Nome:", cliente["nome"])
-            print("CPF:", cliente["cpf"])
-            print("#####################################") 
+        print("\n--- Lista de Clientes ---")
+        for i, cliente in enumerate(clientes):
+            print(f"{i+1}. Nome: {cliente['nome']}, CPF: {cliente['cpf']}")
+        print("---------------------------")
+        return clientes
     else:
-        return "Erro ao listar clientes"
+        print("Erro ao listar clientes")
+        return None
 
 def alterar_endereco_cliente():
-    cpf = str(input("CPF cliente: "))
+    clientes = get_all_clientes()
+    if not clientes:
+        return "Não foi possível listar clientes para alterar o endereço."
+
+    while True:
+        try:
+            escolha_cliente = int(input("Selecione o número do cliente para alterar o endereço: "))
+            if 1 <= escolha_cliente <= len(clientes):
+                cpf = clientes[escolha_cliente - 1]['cpf']
+                break
+            else:
+                print("Seleção inválida. Tente novamente.")
+        except ValueError:
+            print("Entrada inválida. Digite um número.")
+
     novo_endereco = input("Novo endereço: ")
 
     cliente_data = {"endereco": novo_endereco }
@@ -195,6 +209,7 @@ def cadastrar_funcionario():
         return "Erro ao cadastrar o funcionario."
 
 def promover_funcionario():
+    listar_funcionarios()
     cpf = input("CPF do funcionario: ")
     novo_cargo = input("Novo cargo: ")
     novo_salario = input("Novo salario: ")
@@ -213,7 +228,19 @@ def promover_funcionario():
     else:
         return "Erro ao promover o funcionario."
 
+def listar_funcionarios():
+    response = requests.get(local_host + "/get_all_funcionarios")
+    if response.status_code == 200:
+        funcionarios = response.json()
+        print("\n--- Lista de Funcionários ---")
+        for f in funcionarios:
+            print(f"Nome: {f['nome']}, CPF: {f['cpf']}, Cargo: {f['cargo']}")
+        print("---------------------------")
+    else:
+        print("Erro ao listar funcionários.")
+
 def alterar_endereco_funcionario():
+    listar_funcionarios()
     cpf = input("CPF do funcionario: ")
     novo_endereco = input("Novo endereco: ")
 
@@ -226,7 +253,14 @@ def alterar_endereco_funcionario():
     else:
         return "Erro ao alterar o endereco do funcionario."
 
+def calcular_valor_reserva_local(vlr_carro, dias):
+    vlr = float(vlr_carro)
+    temp = int(dias)
+    valor_por_dia = (0.001 * vlr) + 10
+    return valor_por_dia * temp
+
 def demitir_funcionario():
+    listar_funcionarios()
     cpf = input("CPF do funcionario: ")
 
     response = requests.delete(local_host + "/demitir_funcionario/" + cpf);
@@ -356,10 +390,13 @@ def relatorio_clientes_mais_reservas_cli():
     else:
         return response.json().get("message", "Erro ao gerar relatório de clientes com mais reservas.")
 
-def get_available_veiculos_cli():
+def get_available_veiculos_cli(start_date=None, end_date=None):
     print("\n--- Verificar Veículos Disponíveis ---")
-    start_date = input("Data de início da reserva (YYYY-MM-DD): ")
-    end_date = input("Data de fim da reserva (YYYY-MM-DD): ")
+    
+    if start_date is None:
+        start_date = input("Data de início da reserva (YYYY-MM-DD): ")
+    if end_date is None:
+        end_date = input("Data de fim da reserva (YYYY-MM-DD): ")
 
     params = {"start_date": start_date, "end_date": end_date}
     response = requests.get(local_host + "/get_available_veiculos", params=params)
@@ -385,11 +422,35 @@ def get_available_veiculos_cli():
 
 def fazer_reserva():
     
-    get_all_clientes()
-    cpf = input("CPF do cliente:")
+    clientes = get_all_clientes()
+    if not clientes:
+        return "Não foi possível listar clientes para a reserva."
 
-    get_all_funcionarios()
-    cpf_funcionario = input("CPF do funcionário:")
+    while True:
+        try:
+            escolha_cliente = int(input("Selecione o número do cliente: "))
+            if 1 <= escolha_cliente <= len(clientes):
+                cpf_cliente = clientes[escolha_cliente - 1]['cpf']
+                break
+            else:
+                print("Seleção inválida. Tente novamente.")
+        except ValueError:
+            print("Entrada inválida. Digite um número.")
+
+    funcionarios = get_all_funcionarios()
+    if not funcionarios:
+        return "Não foi possível listar funcionários para a reserva."
+
+    while True:
+        try:
+            escolha_funcionario = int(input("Selecione o número do funcionário: "))
+            if 1 <= escolha_funcionario <= len(funcionarios):
+                cpf_funcionario = funcionarios[escolha_funcionario - 1]['cpf']
+                break
+            else:
+                print("Seleção inválida. Tente novamente.")
+        except ValueError:
+            print("Entrada inválida. Digite um número.")
 
     dt_reserva = input("Data inicio da reserva (no formato YYYY-MM-DD): ")
     dias = input("Quantidade de dias:")
@@ -406,19 +467,45 @@ def fazer_reserva():
     except Exception as e:
         return f"Erro inesperado ao calcular data de devolução: {e}"
 
-    available_veiculos = get_available_veiculos_cli(start_date=dt_reserva, end_date=dt_devolucao_str) # Passar datas para a função
+    available_veiculos = get_available_veiculos_cli(start_date=dt_reserva, end_date=dt_devolucao_str)
     if not available_veiculos:
         return "Não foi possível realizar a reserva, pois não há veículos disponíveis para o período."
 
-    placa_veiculo = input("Digite a placa do veículo a ser reservado: ")
-    # Verificar se a placa escolhida está entre os veículos disponíveis
-    if not any(v['placa'] == placa_veiculo for v in available_veiculos):
-        return "Placa do veículo inválida ou não disponível para o período."
+    while True:
+        try:
+            print("\n--- Veículos Disponíveis ---")
+            for i, veiculo in enumerate(available_veiculos):
+                print(f"{i+1}. Placa: {veiculo['placa']}, Modelo: {veiculo['modelo']}, Marca: {veiculo['marca']}, Valor: {veiculo['valor']}")
+            print("---------------------------")
+            
+            escolha_veiculo = int(input("Selecione o número do veículo para reservar: "))
+            if 1 <= escolha_veiculo <= len(available_veiculos):
+                placa_veiculo = available_veiculos[escolha_veiculo - 1]['placa']
+                break
+            else:
+                print("Seleção inválida. Tente novamente.")
+        except ValueError:
+            print("Entrada inválida. Digite um número.")
+
+    # Obter o valor do veículo selecionado
+    valor_veiculo_selecionado = 0
+    for veiculo in available_veiculos:
+        if veiculo['placa'] == placa_veiculo:
+            valor_veiculo_selecionado = veiculo['valor']
+            break
+
+    # Calcular o valor da reserva localmente
+    valor_reserva_calculado = calcular_valor_reserva_local(valor_veiculo_selecionado, dias)
+    print(f"\nO valor estimado da reserva é: R$ {valor_reserva_calculado:.2f}")
+
+    confirmacao = input("Deseja confirmar a reserva? (s/n): ").lower()
+    if confirmacao != 's':
+        return "Reserva cancelada pelo usuário."
 
     status = input("Status da reserva (padrão: Ativa): ") or "Ativa"
 
     reserva_data = { 
-            "cpf": cpf,
+            "cpf": cpf_cliente,
             "cpf_funcionario": cpf_funcionario,
             "dias": dias,
             "dt_reserva": dt_reserva,

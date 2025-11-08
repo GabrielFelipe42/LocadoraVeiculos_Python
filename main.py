@@ -64,7 +64,7 @@ while (sair):
         case 7:
             print(promover_funcionario())
         case 8:
-            print(get_all_funcionarios())
+            get_all_funcionarios()
         case 9:
             print(cadastrar_tipo_veiculo())
         case 10:
