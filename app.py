@@ -19,7 +19,7 @@ db = client.locadoraveiculos_db # Nome do seu banco de dados
 def get_all_funcionarios():
     funcionarios_collection = db.funcionarios
     funcionarios = []
-    for funcionario in funcionarios_collection.find():
+    for funcionario in funcionarios_collection.find({"ativo": True}):
         funcionario["_id"] = str(funcionario["_id"]) # Converte ObjectId para string
         funcionarios.append(funcionario)
 

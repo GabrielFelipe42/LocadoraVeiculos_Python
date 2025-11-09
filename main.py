@@ -51,7 +51,6 @@ while (sair):
         case 1:
             print(cadastrar_cliente())
         case 2:
-            get_all_clientes()
             print(alterar_endereco_cliente())
         case 3:
             get_all_clientes()
@@ -72,6 +71,7 @@ while (sair):
         case 11:
             print(adicionar_veiculo())
         case 12:
+            print(get_all_veiculos())
             print(tirar_veiculo_frota())
         case 13:
             print(get_all_veiculos())
