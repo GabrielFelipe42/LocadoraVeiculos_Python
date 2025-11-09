@@ -12,9 +12,9 @@ Sistema de locadora de veículos com API REST e interface CLI. Migrado para util
 
 ## Funcionalidades
 - Gestão de tipos de veículos
-- Gestão de veículos
-- Gestão de clientes
-- Gestão de funcionários
+- Gestão de veículos (inclui listagem completa antes da remoção da frota)
+- Gestão de clientes (com exibição otimizada da lista de clientes ao alterar endereço)
+- Gestão de funcionários (apenas funcionários ativos são listados para promoção)
 - Sistema de reservas por placa de veículo específica
 - Interface CLI interativa
 - Relatório: Listar veículos mais alugados
@@ -120,18 +120,23 @@ Certifique-se de ter o MongoDB instalado e em execução no seu sistema.
     O menu interativo da aplicação será exibido.
 
 ## Rotas da API
-- `/get_all_tipo_veiculos` - Listar tipos de veículos
-- `/cadastrar_tipo_veiculo` - Cadastrar tipo de veículo
-- `/get_all_veiculos` - Listar veículos
-- `/adicionar_veiculo` - Adicionar veículo
-- `/get_all_clientes` - Listar clientes
-- `/cadastrar_cliente` - Cadastrar cliente
-- `/get_all_funcionarios` - Listar funcionários
-- `/cadastrar_funcionario` - Cadastrar funcionário
-- `/fazer_reserva` - Fazer reserva
-- `/get_all_reservas` - Listar todas as reservas
-- `/get_reservas_by_cliente` - Listar reservas por cliente
-- `/relatorio_veiculos_mais_alugados` - Listar veículos mais alugados
-- `/relatorio_faturamento_por_periodo` - Listar faturamento por período (com opção de meses/período)
-- `/relatorio_clientes_mais_reservas` - Listar clientes com mais reservas
-- `/get_available_veiculos` - Listar veículos disponíveis para reserva
+- `/get_all_tipo_veiculos` - Listar tipos de veículos (GET)
+- `/cadastrar_tipo_veiculo` - Cadastrar tipo de veículo (POST)
+- `/get_all_veiculos` - Listar veículos (GET)
+- `/adicionar_veiculo` - Adicionar veículo (POST)
+- `/tirar_veiculo_frota/<placa>` - Tirar veículo da frota (DELETE)
+- `/get_all_clientes` - Listar clientes (GET)
+- `/cadastrar_cliente` - Cadastrar cliente (POST)
+- `/alterar_endereco_cliente/<cpf>` - Alterar endereço de cliente (PUT)
+- `/get_all_funcionarios` - Listar funcionários (GET)
+- `/cadastrar_funcionario` - Cadastrar funcionário (POST)
+- `/promover_funcionario/<cpf>` - Promover funcionário (PUT)
+- `/demitir_funcionario/<cpf>` - Demitir funcionário (DELETE)
+- `/alterar_endereco_funcionario/<cpf>` - Alterar endereço de funcionário (PUT)
+- `/fazer_reserva` - Fazer reserva (POST)
+- `/get_all_reservas` - Listar todas as reservas (GET)
+- `/get_reservas_by_cliente` - Listar reservas por cliente (POST)
+- `/relatorio_veiculos_mais_alugados` - Listar veículos mais alugados (GET)
+- `/relatorio_faturamento_por_periodo` - Listar faturamento por período (GET)
+- `/relatorio_clientes_mais_reservas` - Listar clientes com mais reservas (GET)
+- `/get_available_veiculos` - Listar veículos disponíveis para reserva (GET)
